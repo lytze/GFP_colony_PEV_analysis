@@ -18,6 +18,6 @@ The second phase is mostly statistics. Three values are extracted from the pictu
 
 ## Sample Figures
 
-Six sample figures are presented in the 'sample_figure' folder. Figure 1 to 5 contain single colonies and figure 6 contains 2. Yeast strains (obtained from Yamamoto lab), JT630 and JT634, are theoretically refered as of higher and lower variation rate respectively. In our sample figures, 1 to 4, as well as 6 are pictures of JT630, and figure 5 is a picture of JT634.
+Six sample figures are presented in the `sample_figure` folder. Figure 1 to 5 contain single colonies and figure 6 contains 2. Yeast strains (obtained from Yamamoto lab), JT630 and JT634, are theoretically refered as of higher and lower variation rate respectively. In our sample figures, 1 to 4, as well as 6 are pictures of JT630, and figure 5 is a picture of JT634.
 
-You can access the genetic infomation through this paper ['Hexanucleotide motifs mediate recruitment of the RNA elimination machinery to silent meiotic genes.' Yamashita A, et al](http://www.ncbi.nlm.nih.gov/pmc/articles/PMC3352096/). Notice that in our pictures, we used the haploid strains instead the original diploid strain.
+You can access the genetic infomation through this paper [Hexanucleotide motifs mediate recruitment of the RNA elimination machinery to silent meiotic genes., *Yamashita A, et al*](http://www.ncbi.nlm.nih.gov/pmc/articles/PMC3352096/). Notice that in our pictures, we used the haploid strains instead the original diploid strain.
