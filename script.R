@@ -2,10 +2,10 @@ library(jpeg);
 library(reshape);
 
 # Read sample figure
-pic <- readJPEG('Sample_Figure/Dis 33-3.jpg');
+pic <- readJPEG('sample_figure/3.jpg');
 x.samp <- seq(from = 1, to = nrow(pic), by = nrow(pic) / 100);
 y.samp <- seq(from = 1, to = ncol(pic), by = nrow(pic) / 100);
-pic.samp <- pic[x.samp, y.samp, 3];
+pic.samp <- pic[x.samp, y.sam, 3];
 
 # Split out x-y coordinate
 pic.melt <- melt(pic.samp);
