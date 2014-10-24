@@ -3,7 +3,7 @@ Project Read-Me
 
 ## Introduction
 
-This project is part of my project in the [*He Xiangwei* lab](http://lsi.zju.edu.cn/redir.php?catalog_id=13701) (Life Sciences Institute, Zhejiang Univ.). The major aim of this project is to evaluate the PEV (position effect variation) pattern complexity based on captured pictures of *gfp*-marked yeast single colonies under fluorenscent microscope. Six sample figures are presented in the `sample_figure` folder. You can access the figures to get more understanding (more info in the 'Sample Figures' section).
+This project is part of my project in the [*He Xiangwei* lab](http://lsi.zju.edu.cn/redir.php?catalog_id=13701) (Life Sciences Institute, Zhejiang University). The major aim of this project is to evaluate the PEV (position effect variation) pattern complexity based on captured pictures of *gfp*-marked yeast single colonies under fluorenscent microscope. Six sample figures are presented in the `sample_figure` folder. You can access the figures to get more understanding (more info in the 'Sample Figures' section).
 
 ## Stages and Functionalities
 
