@@ -1,152 +1,160 @@
 # Functions required for sectorring analyses
-# Version 0.3 Li Yutze Oct 31 2014
+# Version 0.4 Li Yutze Jan. 21 2015
 
-analyze.cpi <- function(name, col.path = c(1.0, 1.0, 1.0), lay = c(0.3, 0.6, 0.9), div = 90) {
-    require(jpeg);
-    require(reshape);
-    require(stringr);
-    require(plotrix);
-    
-    call <- match.call(); # record the function call, for reporting
-    filen <- str_extract(name, '[^/]*$');
-    filen <- gsub('.[^.]*$', '', filen);
-    
-    img <- readJPEG(name);
-    img = (img[, , 1] * col.path[1] + img[, , 2] * col.path[2] + img[, , 3] * col.path[3]) / 
-        sqrt(sum(col.path));
-    tall <- melt(img, varnames = c('y', 'x')); 
-    tall$y <- -tall$y # cast the matrix data into tall list
-    
-    ras <- as.raster(img); # make the raw image a raster, for future ploting
-    den <- density(tall$value, n = 200); # record the density of color values, for future ploting
-    
-    # calculate the threshold for background color
-    current.mean <- mean(tall$value); # set current mean value
-    escape <- 0; # loop escape mark
-    counter <- 10; # count the loop number, escape the loop when loop over 10 times
-    while (!escape & counter) {
-        last.mean <- current.mean;
-        current.mean <- mean(tall$value[tall$value <= 2 * last.mean]);
-        # narrow down the sample range to [0, 2 * last.mean]
-        counter <- counter - 1;
-        if (abs(last.mean - current.mean) <= 0.005) {
-            escape <- 1;
-        }
+# Colony Analyze Main Fucntion
+#   Take in a character vector of file names or a directory name
+#   Output the analysis report for all files avaliable in that vector/dir
+# Argumatents:
+#   path            a charactor vector indicating the picture file paths or
+#                   the directory that contains the pictures.
+#   strain          a integer vector indicating how pictures are grouped into
+#                   strains. If c(10, 15) is input, we consider the first 10
+#                   strains are of a same strain, and the next 15 belongs to
+#                   another. The vector can be named, indicating your strain
+#                   accessions. (e.g. c(AB001 = 10, AB002 = 15))
+#   sampling        Number of sample points extract from the selected ring
+#   at              At what percent of radius taking the sample ring
+#   report          a charactor vector of length 1
+#                       * 'l' for generating one long but consise report for
+#                               all pictures
+#                       * 'd' for generating a relatively detailed report for
+#                               each file
+#                       * 'n' for no reports, default value
+#                   This/ese report/s are useful for manually clean up analysis
+#                   failures.
+#   rec             T/F means Do/Do not leave a record file for the output,
+#                   default value is T.
+colony.analyze <- function(path = charactor(),
+                           strain = NULL,
+                           sampling = 500,
+                           at = .85,
+                           report = 'l',
+                           rec = T) {
+    # Check if files are avaliable
+    if (!all(file.exists(path))) stop('File/Directory not found');
+    if (all(file.info(path)$isdir)) {
+        setwd(path);
+        path <- dir();
     }
-    threshold <- current.mean * 2;
-    deter <- tall$value > threshold;
-    
-    # denoise
-    # scan the tall list, for each entry check the 11 * 11 square area
-    # if over 30% points are in the list, mark all points in the list to be not noise
-    # if less than 30% points are in the list, delet all
-    # scaning processes should skip all entries marked to be not noise
-    
-    # evaluate the circular ragion
-    cen.x <- mean(tall$x[deter]);
-    cen.y <- mean(tall$y[deter]);
-    radius <- sqrt(sum(deter) / pi);
-    
-    # get overall intensity
-    intens <- mean(tall$value[deter]);
-    
-    # get hierarchy verctors
-    rads <- seq(from = 0, to = 2 * pi, length = div + 1);
-    rads <- rads[1:div];
-    cx <- round(sapply(lay, function(x) {cen.x + cos(rads) * x * radius}), 0);
-    cy <- round(sapply(lay, function(x) {cen.y + sin(rads) * x * radius}), 0);
-    vec <- matrix(ncol = div, nrow = length(lay));
-    for (i in 1:length(lay)) {
-        vec[i, ] <- mapply(function(x, y) {
-            mean(c(img[-y + -3:3, x], img[-y, x + -3:3]));
-        }, cx[, i], cy[, i]);
-        vec[i, ] <- (vec[i, ] - mean(vec[i, ]));
+    if (!all(grepl('.jpg$', path) -> index)) {
+        message('Non-jpg files input, leave out following file(s):');
+        message(paste('\t', path[!index], '\n', sep = ''));
+        path <- path[index];
     }
+    sampling <- as.integer(sampling);
+    if (report == T) report.dir <- './reports/';
+    if (!file.exists(report.dir)) dir.create(report.dir);
     
-    # get horizontal variation complexity
-    vec.stp <- vec[, 1:div] - vec[, c(div, 1:(div-1))];
-    hori <- mean(apply(vec.stp, 2, sd));
+    # Load packages
+    library(jpeg);
+    library(EBImage);
+    library(reshape);
     
-    # get vertical variation complexity
-    m <- as.matrix(dist(vec));
-    vert <- mean(m[1:(length(lay) - 1), 2:length(lay)]);
+    # For each picture file, we extract a vecter of intense value and store
+    # them into a list
+    intensities <- list();
     
-    # remove unessesary variables
-    rm(current.mean, last.mean, escape, counter, 
-       tall, deter, m, i, rads, vec.sum);
-    
-    # generate short report
-    short <- function(pr = F) {
-        if (pr) {
-            cat('Overall Intensity: ', intens, '\n', sep = '');
-            cat('Horizontal Variation Complexity: ', hori, '\n', sep = '');
-            cat('Vertical Variation Complexity: ', vert, '\n', sep = '');
-        }
-        invisible(list(intensity = intens, horizontal = hori, vertical = vert));
+    # The factor vector for strains
+    if (is.null(strain)) {
+        strain <- factor(rep('#0', times = length(path)));
+    } else {
+        if (is.null(sn <- names(strain))) 
+            sn <- paste('#', 1:length(strain), sep = '');
+        strain <- factor(rep(sn, times = strain));
     }
     
-    # give processing log
-    log <- function(pr = F) {
-        if (pr) {
-            cat('Identifier: ', filen, '\n', sep = '');
-            cat('Threshold: ', threshold, '\n', sep = '');
-            cat('Evaluating Colony Shape:\n\tcenter: (x, y) = (',
-                cen.x,' ,', cen.y, ')\tradius: ', radius, '\n', sep = '');
-        }
-        invisible(list(call = call, threshold = threshold,
-                       xcenter = cen.x, ycenter = cen.y, radius = radius));
+    # Save the original plotting parameters
+    ori.par <- par(no.readonly = T);
+    
+    # If the long report is required, set up plotting parameters
+    if (report == 'l') {
+        png(filename = paste(report.dir, 'report.png', sep = ''),
+            width = 2.5, height = 0.5 + 1.1 * length(path), 
+            units = 'in', res = 300);
+        par(cex = 0.6, mai = c(0.05, 0.05, 0.05, 0.05), omi = c(0, 0, 0.5, 0));
+        layout(mat = matrix(1:(2 * length(path)), ncol = 2, byrow = T),
+               widths = c(1.1, 1.4));
     }
     
-    # build report
-    report <- function() {
-        ori.par <- par(no.readonly = T);
-        opt <- paste(paste(lay * 100, collapse = '-'), '-', div, sep = '');
-        png(paste('report-', filen, '-', opt, '.png', sep = ''), 
-            width = 600, height = 900);
-        # plot the density and threshold
-        par(fig = c(0.1, 0.9, 0.85, 1), mar = c(0, 0, 0, 0));
-        plot(c(1, 7), c(1, 7), type = 'n', ann = F, axes = F);
-        text(4, 6, paste('REPORT #', filen), cex = 2);
-        text(3, 4:2, c('Overall Intensity:',
-                       'Horizontal Variation Complexity:',
-                       'Vertical Variation Complexity:'), cex = 1);
-        text(5.3, 4:2, round(c(intens, hori, vert), 5), cex = 1);
-        # plot the intensity distribution and the threshold
-        par(fig = c(0.1, 0.9, 0.62, 0.86), mar = c(5, 4, 4, 4) + 0.1, new = T); 
-        plot(den, ann= F, axes = F, col = 'blue4');
-        abline(v = threshold, col = 'red2', lty = 2);
-        axis(side = 2, cex = 0.5, tck = -0.02, cex = 0.6);
-        axis(side = 1, cex = 0.5, tck = -0.02, cex = 0.6);
-        title(main = 'Intensity Distribution',
-              xlab = 'Intensity', ylab = 'Density', cex = 0.6);
-        legend('bottom', legend = c('density', 'threshold'), 
-               lty = c(1, 2), col = c('blue4', 'red2'), cex = 0.8);
-        # show the colony shape
-        shift <- 0.24 / ncol(ras) * nrow(ras);
-        par(fig = c(0.14, 0.86, 0.4 - shift, 0.4 + shift), mar = c(0, 0, 0, 0), new = T);
-        plot(c(1, ncol(ras)), c(-1, -nrow(ras)), type = 'n', ann = F, axes = F);
-        rasterImage(ras, 1, -1, ncol(ras), -nrow(ras));
-        points(cen.x, cen.y, col = 'red2', pch = 4);
-        draw.circle(cen.x, cen.y, radius, border = 'red2', lty = 1);
-        for (i in 1:length(lay)) {
-            #draw.circle(cen.x, cen.y, radius * i, border = 'orange3', lty = 2);
-            points(cx[, i], cy[, i], col = 'orange3', pch = '.')
+    # If the short reports are required, set up plotting parameters
+    if (report == 'd') {
+        # size for each report file is w x d = 4 x 5.5
+        par(mai = c(0.05, 0.05, 0.05, 0.05), omi = c(0, 0, 0.5, 0));
+        layout(mat = matrix(c(0, 1, 0,
+                              2, 2, 2,
+                              3, 3, 3), byrow = T, nrow = 3),
+               widths = c(0.5, 3, 0.5), heights = c(3, 1, 1));
+    }
+    
+    # Iteration through files 
+    for (file in path) {
+        # Load in picture, extract G-path
+        pic <- readJPEG(file)[, , 2];
+        
+        # Find appropriate threshold to isolate the colony's shape
+        # Using the Otsu method in EBImage package to find the thresholding
+        # value of intensity
+        holding <- otsu(pic);
+        # and get the binary of the picture
+        binpic <- pic > holding;
+        
+        # Get the center, the radius and the ring of sampling
+        tall <- melt(binpic, varnames = c('x', 'y'));
+        cenx <- mean(tall$x[tall$value == T]); 
+        ceny <- mean(tall$y[tall$value == T]);
+        radius <- sqrt(sum(binpic) / pi);
+        sampr <- radius * at;
+        
+        # Get the extracted vecter
+        window <- ceiling(pi * radius / sampling / 2);
+        vect <- numeric();
+        for (j in 1:sampling) {
+            rad <- j * 2 * pi / sampling;
+            s.cenx <- cenx + sampr * cos(rad);
+            s.ceny <- ceny + sampr * sin(rad);
+            vect <- c(vect, mean(pic[(s.cenx - window):(s.cenx + window),
+                                     (s.ceny - window):(s.ceny + window)]));
+            #vect <- c(vect, pic[s.cenx, s.ceny]);
         }
-        text(c(cen.x, cen.x), c(cen.y, cen.y + radius), c('center', 'bondary'),
-             col = 'red', cex = 0.8, pos = 3, offset = 0.4);
-        text(rep(cen.x, length(lay)), cen.y + radius * lay, paste(lay * 100, '%'),
-                 col = 'orange', cex = 0.8, pos = 3, offset = 0.4);
-        # plot the sample vecters
-        par(fig = c(0.1, 0.9, 0.03, 0.2), mar = c(2, 2, 3, 2), new = T);
-        image(t(vec), ann = F, axes = F);
-        axis(side = 2, at = seq(from = 0, to = 1, length = length(lay)),
-             labels = paste(lay * 100, '%'), cex.axis = 0.8, las = 2, tck = 0, 
-             col.axis = 'orange3',line = -0.5, lwd = 0);
+        intensities[['file']] <- vect;
+        
+        # Generate report
+        if (report == 'l') {
+            plot(0:1, 0:1, type = 'n', ann = F, frame = 1, axes = 0);
+            rasterImage(drawCircle(pic, cenx, ceny, sampr, 
+                1)[(cenx + radius):(cenx - radius),
+                   (ceny + radius):(ceny - radius)],
+                0, 0, 1, 1);
+            plot(c(0, 2), c(0, 6), type = 'n', ann = F, frame = F, axes = 0);
+            text(1, 5, paste('Strain:', strain[length(intensities)]), pos = 1);
+            text(1, 4, paste('File Name:', file), pos = 1);
+            text(1, 3, paste('Mean Intensity', round(mean(vect)), 3), pos = 1);
+            rasterImage(t(matrix(rep(vect, times = 10), ncol = 10)),
+                        0.1, 0.4, 1.9, 1.6);
+        }
+        if (report == 'd') {
+            # not finished yet
+        }
+    }
+    
+    if (report == 'l') {
+        title(main = 'FIGURE RECOGNITION REPORT', outer = T);
         dev.off();
-        par(ori.par);
+    }
+    par(ori.par);
+    
+    # Reshape the output
+    intensities <- lapply(split(intensities, strain), as.data.frame);
+    
+    # Save the record
+    if (rec == T) {
+        dir.create('./rec');
+        for (strain in names(intensities)){
+            rec.name <- paste('./rec/', strain, '.csv', sep = '');
+            write.csv(intensities[[strain]], rec.name);
+        }
     }
     
-    return(list(short = short,
-                log = log,
-                report = report));
+    # return the intensities
+    invisible(intensities);
 }

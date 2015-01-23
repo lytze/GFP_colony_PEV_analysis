@@ -7,14 +7,7 @@ This project is part of my project in the [*He Xiangwei* lab](http://lsi.zju.edu
 
 ## Stages and Functionalities
 
-The processing pipline can be divided into two steps:
-
-* Find the location and region of the colony 
-* Evaluate the complexity
-
-In the first stage, raw pictures files are inputed to address the locations and regions of the colonies. Typically, colonies are presented as bright green circular objects in dark background in our pictures (just like what a fluorenscent microcopic figure should look like). In our early versions we only deal with 'friendly' pictures containing only one colony in each (sample figure 1 ~ 5). Next we might look forward to address more colonoes in one time (sample figure 6).
-
-The second phase is mostly statistics. Three values are extracted from the pictures: 1) the overall intensity, 2) the horizontal complexity and 3) the vertical complexity. We define the horizontal and vertical direction based on the polar coordination, where horizontal is the direction across circumferences and vertical is that on the radius.
+__Waiting for Update__
 
 ## Sample Figures
 
