@@ -163,17 +163,6 @@ analyze <- function(lis, res = 10, rec = T) {
     # The result is a list of vectors
     count <- list();
 
-    # Setting up ploting parameters
-    if (!file.exists('./report')) dir.create('./report');
-    ori.par <- par(no.readonly = T);
-    png('./report/analysis_report.png',
-        width = 2.5, height = 0.5 + 1.1 * length(lis), 
-        units = 'in', res = 300);
-    par(cex = 0.4, mai = c(0.05, 0.05, 0.05, 0.05), omi = c(0, 0, 0.5, 0));
-    layout(mat = matrix(1:(2 * length(lis)), ncol = 2, byrow = T),
-               widths = c(1.1, 1.4))
-    mai <- c(0.05, 0.05, 0.05, 0.05);
-
     # Go through strains
     for (strain in names(lis)) {
         count[[strain]] <- numeric();
@@ -197,26 +186,9 @@ analyze <- function(lis, res = 10, rec = T) {
             count[[strain]] <- c(count[[strain]], count.strips(state, len));
         }
     }
-
-    # Adding the information of this strain into the report
-    rightlim <- max(sapply(count, max)) + 2;
-    upperlim <- max(sapply(count, function(x) {max(table(x))})) + 2;
-    for (strain in names(count)) {
-        par(mai = c(0.3, 0.3, 0.02, 0.02))
-        hist(count[[strain]],
-             xlim = c(0, rightlim), breaks = c(0:rightlim),
-             ylim = c(0, upperlim),
-             main = '', xlab = 'Switch Event', ylab = 'Count',
-             tck = -0.01, mgp = c(0.5, 0, 0),
-             cex.axis = 0.4, cex.lab = 0.5);
-        par(mai = mai);
-        plot(c(0, 2), c(1, 4), type = 'n', ann = F, axes = F);
-        text(1, 3, paste('Strain:', strain));
-        text(1, 2, paste('Mean of Count:', round(mean(count[[strain]]), 2)));
-    }
-    title(main = 'ANALYSIS REPORT', outer = T);
-    par(ori.par);
-    dev.off();
+    
+    # Call report function in utils.R to generate the report
+    analyze.report(count);
 
     # Save the record
     text <- sapply(count, paste, collapse = ', ');

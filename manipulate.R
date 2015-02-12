@@ -41,10 +41,19 @@ leave <- function(data, index) {
 
 
 # Recover data from Records ---------------------------------------------------
-#   In the `extract()` function, we leave a record in the ./rec/ directory, and
-#   for the next time analysis, we do not need to run the function again, and
-#   we can recover the result from these records
+#   We leave records of extract() and analyze() fucntion  in the ./rec/ direc-
+#   tory, and for the next time analysis, we do not need to run the function
+#   again, and we can recover the result from these records
 # Arguments:
-#   dir         The path to the rec/ directory, must to be end with 'rec' or
-#               'rec/'
+#   recover.extract()
+#   recover.analyzs()
+
+recover.analyze <- function(dir = NULL) {
+    if (is.null(dir)) dir <- './rec/analysis_rec.txt';
+    if (!file.exists(dir)) stop('Record file not found');
+    lines <- strsplit(readLines(dir), ': ');
+    count <- sapply(lines, function(x) as.integer(strsplit(x[2], ', ')[[1]]));
+    names(count) <- sapply(lines, function(x) x[1]);
+    count;
+}
 #------------------------------------------------------------------------------
