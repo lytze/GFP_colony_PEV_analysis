@@ -9,7 +9,7 @@ The PEV, namely the <u>P</u>osition <u>E</u>ffect <u>V</u>ariegation is an impor
 
 For yeast strains conveys reporter genes that are epigenetically unstable, usually those located at the boundaries of special chromatin structures, the expression of the reporter gene will show a sectored variegation due to the growing and expanding of the colony, just like the colony in the following figures. You can [check the wikipedia page](http://en.wikipedia.org/wiki/Position_effect) on this topic for more information.
 
-![PEV colony](./tree/master/sample_figure/1.jpg)
+![PEV colony](https://github.com/lytze/GFP_colony_PEV_analysis/blob/master/sample_figure/1.jpg?raw=true)
 
 ## Why _gfp_ in This Case of Analysis
 
