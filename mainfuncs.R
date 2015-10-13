@@ -29,6 +29,7 @@ extract <- function(path = charactor(),
                     report = T,
                     rec = T) {
     # Check if files are avaliable
+    pwd <- getwd()
     if (!all(file.exists(path))) stop('File/Directory not found');
     if (all(file.info(path)$isdir)) {
         setwd(path);
@@ -93,55 +94,64 @@ extract <- function(path = charactor(),
         radius <- sqrt(sum(binpic) / pi);
         sampr <- radius * at;
         
-        # Get the extracted vecter
         window <- ceiling(pi * radius / sampling / 2);
-        vect <- numeric();
-        for (j in 1:sampling) {
-            rad <- j * 2 * pi / sampling;
-            s.cenx <- cenx + sampr * cos(rad);
-            s.ceny <- ceny + sampr * sin(rad);
-            vect <- c(vect, mean(pic[(s.cenx - window):(s.cenx + window),
-                                     (s.ceny - window):(s.ceny + window)]));
-            #vect <- c(vect, pic[s.cenx, s.ceny]);
-        }
-        intensities[[file]] <- vect;
+        escape <- {
+            c(cenx + (1 + radius + window) * c(-1, 1),
+                        ceny + (1 + radius + window) * c(-1, 1)) *
+            c(1, -1, 1, -1) +
+            c(0, nrow(pic), 0, ncol(pic))
+        } < 0
         
-        # Generate report
+        if (!any(escape)) {
+            # Get the extracted vecter
+            vect <- numeric();
+            for (j in 1:sampling) {
+                rad <- j * 2 * pi / sampling;
+                s.cenx <- cenx + sampr * cos(rad);
+                s.ceny <- ceny + sampr * sin(rad);
+                vect <- c(vect, mean(pic[(s.cenx - window):(s.cenx + window),
+                                         (s.ceny - window):(s.ceny + window)]));
+                #vect <- c(vect, pic[s.cenx, s.ceny]);
+            }
+            intensities[[file]] <- vect;
+            
+            # Generate report
+            if (report) {
+                plot(0:1, 0:1, type = 'n', ann = F, frame = 1, axes = 0);
+                rasterImage(drawCircle(pic, cenx, ceny, sampr, 
+                                       1)[(cenx + radius):(cenx - radius),
+                                          (ceny + radius):(ceny - radius)],
+                            0, 0, 1, 1);
+                plot(c(0, 2), c(0, 6), type = 'n', ann = F, frame = F, axes = 0);
+                text(1, 6, paste('#', length(intensities)), pos = 1);
+                text(1, 5, paste('Strain:', strain[length(intensities)]), pos = 1);
+                text(1, 4, paste('File Name:', file), pos = 1);
+                text(1, 3, paste('Mean Intensity', round(mean(vect), 3)), pos = 1);
+                rasterImage(t(matrix(rep(vect, times = 10), ncol = 10)),
+                            0.1, 0.4, 1.9, 1.6);
+            }
+            
+        }
+        
         if (report) {
-            plot(0:1, 0:1, type = 'n', ann = F, frame = 1, axes = 0);
-            rasterImage(drawCircle(pic, cenx, ceny, sampr, 
-                1)[(cenx + radius):(cenx - radius),
-                   (ceny + radius):(ceny - radius)],
-                0, 0, 1, 1);
-            plot(c(0, 2), c(0, 6), type = 'n', ann = F, frame = F, axes = 0);
-            text(1, 6, paste('#', length(intensities)), pos = 1);
-            text(1, 5, paste('Strain:', strain[length(intensities)]), pos = 1);
-            text(1, 4, paste('File Name:', file), pos = 1);
-            text(1, 3, paste('Mean Intensity', round(mean(vect), 3)), pos = 1);
-            rasterImage(t(matrix(rep(vect, times = 10), ncol = 10)),
-                        0.1, 0.4, 1.9, 1.6);
+            title(main = 'FIGURE RECOGNITION REPORT', outer = T);
+            dev.off();
         }
-
-    }
-    
-    if (report) {
-        title(main = 'FIGURE RECOGNITION REPORT', outer = T);
-        par(ori.par);
-        dev.off();
-    }
-    
-    # Reshape the output
-    intensities <- lapply(split(intensities, strain), as.data.frame);
-    
-    # Save the record
-    if (rec) {
-        if (!file.exists('./rec')) dir.create('./rec');
-        for (strain in names(intensities)){
-            rec.name <- paste('./rec/', strain, '.csv', sep = '');
-            write.csv(intensities[[strain]], rec.name);
+        
+        # Reshape the output
+        intensities <- lapply(split(intensities, strain), as.data.frame);
+        
+        # Save the record
+        if (rec) {
+            if (!file.exists('./rec')) dir.create('./rec');
+            for (strain in names(intensities)){
+                rec.name <- paste('./rec/', strain, '.csv', sep = '');
+                write.csv(intensities[[strain]], rec.name);
+            }
         }
     }
     
+    setwd(pwd)
     # return the intensities
     invisible(intensities);
 }

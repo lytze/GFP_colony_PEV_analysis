@@ -1,0 +1,187 @@
+---
+output:
+  html_document:
+    theme: journal
+---
+_gfp_ Marked Yeast Colony PEV Analysis Functions Introduction
+=============================================================
+
+_Li Yutze_, on Version 0.4
+
+- - -
+
+## Backgrounds: The PEV Phenomenon of Yeast
+
+The PEV, namely the <u>P</u>osition <u>E</u>ffect <u>V</u>ariegation is an important __epigenetic__ phenomenon, in which the genotype of a group keeps the same while the phenotype of them varies. The shifting of phenotypes are usually bi-stable, which means the gene of interest prefers its current on/off state, in other word, when the cell express the gene, its descendants are more likely to express that, but for some particular cases, some the daughter cells varies the state, and for cells currently silent the gene, their daughter cells are more likely to be silent.
+
+For yeast strains conveys reporter genes that are epigenetically unstable, usually those located at the boundaries of special chromatin structures, the expression of the reporter gene will show a sectored variegation due to the growing and expanding of the colony.
+
+More information, you can [check the wikipedia page](http://en.wikipedia.org/wiki/Position_effect) on this topic.
+
+In this project, our goal is to get the shifting frequency from the pictures of the colonies. Usually colonies with more sectorrings indicates more shifting events during growing. So this task is equal to count the number of the strips.
+
+## Why _gfp_ in This Case of Analysis
+
+Usually scientists use the _ade6_ gene as a marker for PEV, in those cases when colonies are grown with Adenine(-) medium cells with _ade6_ gene silent will show a scarlet color.
+
+But in this case study, we use the _gfp_ gene as the reporter for two reasons:
+
+1. Silent of _ade6_ will slow down the growing of cells, so the colonies with PEV are always irregular, which makes it difficult grabing the shape with programs. But _gfp_ do not affect the growing significantly, so we can easily assuming the colonies are just circular.
+2. _gfp_ marked colonies are photographed with fluorenscent stereomicroscopes. The fluorenscent imaging condition makes it handy for image processing, where only one color path are involved.
+
+## The Overview of the Algorithm
+
+To analyze the pictures captured by the microscope, for each image, following steps are adopted:
+
+1. Recognize the image, find the position and size of the colony. This can be determined using a simple thresholding method.
+2. Get a sample ring from the colony, and save as a vector of numeric intensity values. This is like to transform polar coordinates into a Cartesian one, and the sample vector can be projected to a concentric circle of the colony
+3. From the sample vector, count the dark-bright shifting numbers.
+
+## Grab the Shape of the Colony and Get the Sample Vector
+
+You can find the code in `mainfunctions.R` assembled into the `extract()` function. Here we use a sample figure to show you how is the code working.
+
+```{r}
+library(jpeg);
+library(EBImage);
+library(reshape);
+
+img <- readJPEG('./sample_figure/3.jpg')[, , 2];
+```
+
+We only extract the green path of the image `[, , 2]`. The threshold is determined using the Otsu's method. The `otsu()` function in the `EBImage` package will do this work.
+
+```{r}
+holding <- otsu(img);
+bin.img <- img > holding;
+```
+
+The binarized image is useful to determine the radius and the center, where the radius is calculated via the area, and the center is just the center of weight.
+
+```{r}
+radius <- radius <- sqrt(sum(bin.img) / pi);
+tall <- melt(bin.img, varnames = c('x', 'y'));
+cenx <- mean(tall$x[tall$value == T]); 
+ceny <- mean(tall$y[tall$value == T]);
+```
+
+By default, we take the 85% radius ring for sampling, and following code shows how the sample vector is generated.
+
+```{r}
+at <- .85; # function default
+sampling <- 500; # function default
+sampr <- radius * at;
+window <- ceiling(pi * radius / sampling / 2);
+vect <- numeric();
+for (j in 1:sampling) {
+    rad <- j * 2 * pi / sampling;
+    s.cenx <- cenx + sampr * cos(rad);
+    s.ceny <- ceny + sampr * sin(rad);
+    vect <- c(vect, mean(img[(s.cenx - window):(s.cenx + window),
+                             (s.ceny - window):(s.ceny + window)]));
+}
+```
+
+Meanwhile a report are generated, for manually checking if the recognition of the colony is valid. The folloeing figure is the report for the sample figure. In real analysis works, the report could be a really long list.
+
+```{r echo = F, fig.height = 3.2, fig.width = 6}
+par(cex = 0.6, mai = c(0.05, 0.05, 0.05, 0.05), omi = c(0, 0, 0.5, 0));
+layout(mat = matrix(1:2, ncol = 2, byrow = T),
+       widths = c(1.1, 1.4));
+plot(0:1, 0:1, type = 'n', ann = F, frame = 1, axes = 0);
+rasterImage(drawCircle(img, cenx, ceny, sampr, 
+    1)[(cenx + radius):(cenx - radius),
+       (ceny + radius):(ceny - radius)],
+    0, 0, 1, 1);
+plot(c(0, 2), c(0, 6), type = 'n', ann = F, frame = F, axes = 0);
+text(1, 6, '#1', pos = 1);
+text(1, 5, 'Strain: Strain Name', pos = 1);
+text(1, 4, 'File Name: 3.jpg', pos = 1);
+text(1, 3, paste('Mean Intensity', round(mean(vect), 3)), pos = 1);
+rasterImage(t(matrix(rep(vect, times = 10), ncol = 10)),
+            0.1, 0.4, 1.9, 1.6);
+title(main = 'FIGURE RECOGNITION REPORT', outer = T);
+```
+
+In the report, the white ring shows the sample ring, the squre at the righbottom corner is the result of the sampling.
+
+## Determine the Frequency of Shifting
+
+The next task is to calculate the frequency of expression switching. We have tried all thresholding ways to solve this but not any of these attemps succeed. This is because simple thresholding methods will always complicate figures without significant variegation, in which case random noise will be magnified, meanwhile some advanced thresholding methods also fail beause the bright strips in a darker area will miss the count due to the constant threshold value.
+
+So an alternative method is developed for this problem. In stead of determining where is bright and where is dark, we tried to test the monotony of every sample points, via t-testing the difference between its left and right wing.
+
+```{r}
+source('utils.R'); # functions e.g. generating the wings' indecs in this file
+res <- 10; # resolution is the length of the wings, function default is 10
+state <- integer();
+for (i in 1:sampling) {
+    left <- vect[left.wing(i, sampling, res)];
+    right <- vect[right.wing(i, sampling, res)];
+    conf <- t.test(left, right, conf.level = 0.99)$conf;
+    state <- c(state, sum(c(-(conf > 0), conf < 0)) / 2);
+}
+```
+
+State is the condition of the curve at this point, where -1 means dicreasing, +1 means increasing, and 0 means no significent change. So the regions that `state == 0` are possibly extreme values, or peaks, when the left and right side are of different signs. So count the 0-reagions with this feature we can estimate the total extremes, and the half of the count is the number of bright/dark sectorings. The +1 count due to the peak across the vector boundary are floored when taking the integer dividing.
+
+```{r}
+# This function is in the utils.R file
+count.strips <- function(state, len) {
+    count <- 0L;
+	i <- 1L;
+	while (i <= len) {
+		j <- i;
+		if (!state[i]) {
+			while (j <= len & !state[j]) j <- j + 1;
+			j <- j - 1;
+			if (!(state[left.wing(i, len, 1)] + state[right.wing(j, len, 1)]))
+				count <- count + 1;
+		}
+		i <- j + 1;
+	}
+	floor(count / 2);
+}
+
+count <- count.strips(state, len = sampling);
+count;
+```
+
+The count value is an estimated value, but with `res` and `sampling` fixed, the count values within a group of cells are still conparable.
+
+- - -
+
+## Sample Analysis: JT630, JT634 vs. LY003 and LY002 strains
+
+In our study, we are interested in a RNA element's effect on heterochromatin formation and stability, which is an important source of PEV. JT630 and JT634 are yeast strains obtained from _Yamamoto's_ lab, where JT634 was marked with _gfp_ (replacing the original _lys1^+^_ gene), and the JT630 strain was marked with _gfp_ plus six copies of the element motif's DNA sequence (at the same location).
+
+We have find variegations in JT630 (_lys1:gfp+6motifs_) strain are more complicated than that in JT634 (_lys1:gfp_). To check if this effect really involves heterochromatin, we next do the deletion of _clr4_, which codes the sole H3K9 methyltransferase in our yeast, on both strains. These strains are LY002 (_lys1:gfp_ / _clr4Δ_) and LY003 (_lys1:gfp+6motifs_ / _clr4Δ_). If motif added cells without the ability of building heterochromatin show a significant decreasing in switching counts, we can support our theory.
+
+The images of the colonies are saved in two directorys `dir1` and `dir2`, the the following code shows the analyzing process:
+
+```R
+> source('mainfuncs.R');
+> data <- extract(path = dir1, strain = c(JT630 = 49, JT634 = 44));
+> analyze(data);
+# JT630: 5.02 with 49 inputs
+# JT634: 2.14 with 44 inputs
+> data <- extract(path = dir2, strain = c(LY002 = 50, LY003 = 41));
+> analyze(data);
+# LY002: 2.62 with 50 inputs
+# LY003: 3.88 with 41 inputs
+```
+
+It will takes about 3 minutes to `extract()` and `analyze()` each data set. For each directory 2 reports are generated: one by `extract()`, which is a tall figure reports the recognizing and sampling conditions, the other by `analyze()`, which is the switching count report of different strains in the directory.
+
+You can check the tall reports [here for JT strains](./sample_reports/extract_report_JT.jpg) and [here for LY strains](./sample_reports/extract_report_LY.jpg). (Note: part of the reports are mosaicked)
+
+And the reports for switching counts are as following
+
+![JT](./sample_reports/analysis_report_JT.jpg)
+![LY](./sample_reports/analysis_report_LY.jpg)
+
+The deletion of _clr4_ cause a decreasing of about 1.14 counts on the _gfp+6motif_ strains (comparing JT630 and LY003), and cause only 0.48 count difference within sole _gfp_ marked strains (comparing JT634 and LY002). This result supports our thesis.
+
+<br>
+
+- - -

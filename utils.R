@@ -68,7 +68,7 @@ analyze.report <- function(count, dir = NULL) {
         text(1, 2, paste('Mean of Count:', round(mean(count[[strain]]), 2)));
     }
     title(main = 'ANALYSIS REPORT', outer = T);
-    par(ori.par);
+    # par(ori.par);
     dev.off();
 }
 #------------------------------------------------------------------------------
