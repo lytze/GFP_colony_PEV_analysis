@@ -1,11 +1,13 @@
 Project Read-Me
-===============
+================
 
 ## Background
 
 This project is part of my project in the [*He Xiangwei* lab](http://lsi.zju.edu.cn/redir.php?catalog_id=13701) (Life Sciences Institute, Zhejiang University). The major objective of this project is to evaluate the PEV (position effect variegation pattern complexity based on captured pictures of *gfp*-marked yeast single colonies under fluorenscent microscope.
 
 The PEV, namely the <u>P</u>osition <u>E</u>ffect <u>V</u>ariegation is an important __epigenetic__ phenomenon, in which the genotype of a group keeps the same while the phenotype of them varies. The shifting of phenotypes are usually bi-stable, which means the gene of interest prefers its current on/off state, in other word, when the cell express the gene, its descendants are more likely to express that, but for some particular cases, some the daughter cells varies the state, and for cells currently silent the gene, their daughter cells are more likely to be silent.
+Usually geneticists use the _ade6_ gene as a marker for PEV (and as well for other uses). Deletion or defect on the _ade6_ gene will make the colony a red color when they brought up in low-adenine medium. So if EPV events are introduced to the _ade6_ reporter, we will find red-and-white sectorring variegations on the colony.
+
 
 For yeast strains conveys reporter genes that are epigenetically unstable, usually those located at the boundaries of special chromatin structures, the expression of the reporter gene will show a sectored variegation due to the growing and expanding of the colony, just like the colony in the following figures. You can [check the wikipedia page](http://en.wikipedia.org/wiki/Position_effect) on this topic for more information.
 
